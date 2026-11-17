@@ -80,7 +80,7 @@ const SettingsContent = () => {
         className={styles.dialog}
         mainClassName={styles.dialogMain}
         onClose={() => {
-          if (!historyDelete.busy) {
+          if (!historyDelete.busy && !historyImport.busy) {
             closeSettings()
           }
         }}
@@ -444,7 +444,7 @@ const SettingCell = ({
   )
 }
 
-/** 选文件后先提示覆盖；确认后才检查文件并执行导入，任何错误都提示导入失败。 */
+/** 选文件后先提示覆盖；确认后才检查文件并执行导入，展示实时进度并区分存储/权限异常。 */
 const useHistoryImport = () => {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -458,12 +458,36 @@ const useHistoryImport = () => {
     importing.current = true
     setFile(null)
     setBusy(true)
-    setStatus(null)
+    setStatus({ key: 'historyImportValidating' })
     try {
-      const count = await importHistory(file)
+      const count = await importHistory(file, (progress) => {
+        if (progress.phase === 'committing') {
+          setStatus({ key: 'historyImportCommitting' })
+        } else if (progress.totalSessions !== undefined) {
+          setStatus({
+            key: 'historyImportReadingTotal',
+            params: { count: progress.importedSessions, total: progress.totalSessions },
+          })
+        } else {
+          setStatus({
+            key: 'historyImportReading',
+            params: { count: progress.importedSessions },
+          })
+        }
+      })
       setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
-    } catch {
-      setStatus({ key: 'historyImportFailed', error: true })
+    } catch (error) {
+      if (error instanceof BackupError) {
+        setStatus({ key: 'historyImportFailed', error: true })
+      } else if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        setStatus({ key: 'historyImportStorageFull', error: true })
+      } else {
+        setStatus({
+          key: 'historyImportErrorDetail',
+          params: { message: error instanceof Error ? error.message : String(error) },
+          error: true,
+        })
+      }
     } finally {
       importing.current = false
       setBusy(false)
@@ -499,7 +523,7 @@ const ImportHistory = ({
             onClick={() => inputRef.current?.click()}
           >
             <IconUploadOutline14 />
-            {t('upload')}
+            {t(historyImport.busy ? 'historyImporting' : 'upload')}
           </Button>
           <input
             ref={inputRef}

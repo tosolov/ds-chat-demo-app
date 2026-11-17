@@ -171,6 +171,15 @@ export const addStagingSession = async (session: Session): Promise<void> => {
   await (await getDB()).add('sessionsStaging', session)
 }
 
+/** 批量写入导入暂存会话，大幅减少移动端 IndexedDB 事务提交开销 */
+export const addStagingSessions = async (sessions: Session[]): Promise<void> => {
+  if (sessions.length === 0) {
+    return
+  }
+  const tx = (await getDB()).transaction('sessionsStaging', 'readwrite')
+  await Promise.all([...sessions.map((session) => tx.store.add(session)), tx.done])
+}
+
 export const saveStagingFiles = (files: StoredFile[]): Promise<void> =>
   putFiles('filesStaging', files)
 

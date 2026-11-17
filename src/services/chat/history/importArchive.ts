@@ -1,4 +1,6 @@
 import * as db from '../db.js'
+import type { StoredFile } from '../db.js'
+import type { Session } from '../types.js'
 import { BackupError, fail } from './errors.js'
 import type { SessionIndexEntry } from './format.js'
 import { INDEX_PATH, MANIFEST_PATH, USER_PATH, parseSessionPath, sessionFilesDir } from './paths.js'
@@ -72,13 +74,27 @@ export const checkArchiveFormat = async (file: File): Promise<void> => {
   fail('backupUnrecognized')
 }
 
+export type ImportProgress = {
+  phase: 'reading' | 'committing'
+  importedSessions: number
+  totalSessions?: number
+}
+
+const SESSION_BATCH_SIZE = 50
+const FILE_BATCH_COUNT = 20
+const FILE_BATCH_BYTES = 8 * 1024 * 1024
+
+const yieldToMain = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+
 /**
  * 流式导入：manifest → user（不导入）→ 全部会话 JSON → index → 全部图片。
  * 也支持会话与图片交错排列、index 位于末尾的条目顺序。
- * 会话读完立即暂存，只保留图片路径映射；图片全部读完后逐会话回填 MIME，不改变图片身份。
- * 写入导入暂存存储；调用方负责先清空暂存，成功后替换正式数据，失败时清理暂存。
+ * 会话与图片按小批量事务暂存，显著降低移动端 IndexedDB 写入耗时。
  */
-export const importArchive = async (file: File): Promise<void> => {
+export const importArchive = async (
+  file: File,
+  onProgress?: (progress: ImportProgress) => void
+): Promise<void> => {
   if (!(await isZipFile(file))) {
     fail('backupUnrecognized')
   }
@@ -89,6 +105,33 @@ export const importArchive = async (file: File): Promise<void> => {
   let manifest = false
   let index: SessionIndexEntry[] | undefined
   let currentSessionId: string | undefined
+  let totalSessions: number | undefined
+
+  let sessionBatch: Session[] = []
+  let fileBatch: StoredFile[] = []
+  let fileBatchBytes = 0
+
+  const flushSessions = async () => {
+    if (sessionBatch.length === 0) {
+      return
+    }
+    const batch = sessionBatch
+    sessionBatch = []
+    await db.addStagingSessions(batch)
+    onProgress?.({ phase: 'reading', importedSessions: imported.size, totalSessions })
+    await yieldToMain()
+  }
+
+  const flushFiles = async () => {
+    if (fileBatch.length === 0) {
+      return
+    }
+    const batch = fileBatch
+    fileBatch = []
+    fileBatchBytes = 0
+    await db.saveStagingFiles(batch)
+    await yieldToMain()
+  }
 
   const saveImage = async (entry: ArchiveEntry, id: string) => {
     if (stored.has(id)) {
@@ -97,12 +140,23 @@ export const importArchive = async (file: File): Promise<void> => {
     }
     const data = await readEntry(entry)
     const type = imageType(new Uint8Array(await data.slice(0, 16).arrayBuffer()))
-    await db.saveStagingFiles([{ id, blob: new Blob([data], { type }) }])
+    const blob = new Blob([data], { type })
     stored.set(id, type)
+    fileBatch.push({ id, blob })
+    fileBatchBytes += blob.size
+    if (fileBatch.length >= FILE_BATCH_COUNT || fileBatchBytes >= FILE_BATCH_BYTES) {
+      await flushFiles()
+    }
   }
 
   try {
-    for await (const entry of readArchive(file)) {
+    for await (const entry of readArchive(file, (entries) => {
+      const count = entries.filter((item) => parseSessionPath(item.path) !== null).length
+      if (count > 0) {
+        totalSessions = count
+      }
+      onProgress?.({ phase: 'reading', importedSessions: 0, totalSessions })
+    })) {
       const { path } = entry
       const sessionId = parseSessionPath(path)
       if (!manifest) {
@@ -124,8 +178,12 @@ export const importArchive = async (file: File): Promise<void> => {
         for (const [imagePath, id] of local.images) {
           images.set(imagePath, id)
         }
-        await db.addStagingSession(local.session)
+        sessionBatch.push(local.session)
+        if (sessionBatch.length >= SESSION_BATCH_SIZE) {
+          await flushSessions()
+        }
       } else if (path === INDEX_PATH && !index) {
+        await flushSessions()
         index = readSessionIndex(await readJson(entry))
       } else if (
         index
@@ -139,6 +197,8 @@ export const importArchive = async (file: File): Promise<void> => {
         fail('backupIncomplete')
       }
     }
+    await flushSessions()
+    await flushFiles()
   } catch (error) {
     throw error instanceof ArchiveError ? new BackupError('backupIncomplete') : error
   }
@@ -155,5 +215,6 @@ export const importArchive = async (file: File): Promise<void> => {
   ) {
     fail('backupIncomplete')
   }
+  onProgress?.({ phase: 'committing', importedSessions: imported.size, totalSessions })
   await db.updateStagingFileTypes(stored)
 }
