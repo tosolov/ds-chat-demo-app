@@ -33,6 +33,10 @@ declare const styles: {
   readonly "importConfirmText": string;
   readonly "deleteConfirm": string;
   readonly "deleteActions": string;
+  readonly "balanceHeader": string;
+  readonly "balanceAmount": string;
+  readonly "balanceBadge": string;
+  readonly "balanceActions": string;
 };
 export = styles;
 

@@ -9,6 +9,18 @@ declare const styles: {
   readonly "section": string;
   readonly "sectionHeader": string;
   readonly "bottom": string;
+  readonly "balanceCard": string;
+  readonly "balanceMain": string;
+  readonly "balanceIcon": string;
+  readonly "balanceBody": string;
+  readonly "balanceRow": string;
+  readonly "balanceLabel": string;
+  readonly "balanceWarn": string;
+  readonly "balanceValue": string;
+  readonly "balanceError": string;
+  readonly "balanceSub": string;
+  readonly "refreshSpin": string;
+  readonly "refreshSpinning": string;
   readonly "settings": string;
   readonly "settingsIcon": string;
   readonly "settingsLabel": string;

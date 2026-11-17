@@ -6,9 +6,16 @@ import {
   IconDownloadOutline16,
   IconFollowsystemOutline16,
   IconLightOutline16,
+  IconRefreshOutline16,
   IconSettingsOutline16,
   IconUploadOutline14,
 } from '../base/icons.js'
+import {
+  formatBalanceAmount,
+  pickPrimaryBalance,
+  refreshBalance,
+  useBalanceStore,
+} from '../../services/balance.js'
 import {
   BackupError,
   clearHistory,
@@ -104,6 +111,7 @@ const SettingsContent = () => {
           ) : (
             <>
               <ApiKeyField editor={apiKeyEditor} />
+              <ApiBalanceSetting />
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
               <SettingCell
@@ -509,6 +517,64 @@ const ImportHistory = ({
         </>
       }
     />
+  )
+}
+
+/** API 账户余额查询与刷新 */
+const ApiBalanceSetting = () => {
+  const t = useTranslate()
+  const apiKey = useSettings((state) => state.apiKey)
+  const balance = useBalanceStore((state) => state.balance)
+  const loading = useBalanceStore((state) => state.loading)
+  const error = useBalanceStore((state) => state.error)
+
+  if (!apiKey) {
+    return null
+  }
+
+  const primary = pickPrimaryBalance(balance)
+  const breakdown = primary
+    ? t('apiBalanceBreakdown', {
+        granted: formatBalanceAmount(primary.currency, primary.granted_balance),
+        toppedUp: formatBalanceAmount(primary.currency, primary.topped_up_balance),
+      })
+    : undefined
+
+  return (
+    <div className={clsx(styles.cell, styles.row)}>
+      <div className={styles.text}>
+        <div className={styles.balanceHeader}>
+          <span className={styles.label}>{t('apiBalance')}</span>
+          {primary ? (
+            <span className={styles.balanceAmount}>
+              {formatBalanceAmount(primary.currency, primary.total_balance)}
+            </span>
+          ) : null}
+          {balance && !balance.is_available ? (
+            <span className={styles.balanceBadge}>{t('apiBalanceUnavailable')}</span>
+          ) : null}
+        </div>
+        <div className={clsx(styles.description, error && !primary && styles.error)}>
+          {loading && !primary
+            ? t('apiBalanceLoading')
+            : error
+              ? error
+              : (breakdown ?? t('apiBalanceNoInfo'))}
+        </div>
+      </div>
+      <div className={styles.balanceActions}>
+        <Button
+          variant="outlined"
+          size="m"
+          className={styles.cellButton}
+          disabled={loading}
+          onClick={() => void refreshBalance({ force: true })}
+        >
+          <IconRefreshOutline16 />
+          {loading ? t('apiBalanceLoading') : t('apiBalanceRefresh')}
+        </Button>
+      </div>
+    </div>
   )
 }
 

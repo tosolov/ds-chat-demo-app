@@ -258,3 +258,17 @@ export type ApiErrorBody = {
     code?: string | null
   }
 }
+
+/** GET /user/balance 返回的单项币种余额 */
+export type BalanceInfo = {
+  currency: string
+  total_balance: string
+  granted_balance: string
+  topped_up_balance: string
+}
+
+/** GET /user/balance 响应 */
+export type UserBalanceResponse = {
+  is_available: boolean
+  balance_infos: BalanceInfo[]
+}

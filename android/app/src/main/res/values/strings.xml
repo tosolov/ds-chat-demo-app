@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DeepSeek API</string>
+    <string name="title_activity_main">DeepSeek API</string>
+    <string name="package_name">com.deepseek.apichat</string>
+    <string name="custom_url_scheme">com.deepseek.apichat</string>
+</resources>

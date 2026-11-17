@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useTranslate } from '../i18n/index.js'
+import { refreshBalance } from '../services/balance.js'
 import { useSettings } from '../services/settings.js'
 import { useIsMobile, useMobileViewport, usePreventPageScroll } from './viewport.js'
 import {
@@ -69,8 +70,9 @@ export const App = () => {
 
   useEffect(() => {
     void initChat()
-    // 首次打开先在设置里输入 API Key
+    // 首次打开先在设置里输入 API Key；已有 Key 时同步一次余额
     ensureApiKey()
+    void refreshBalance({ minAgeMs: 15_000 })
   }, [])
 
   return (

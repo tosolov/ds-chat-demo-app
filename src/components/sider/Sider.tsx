@@ -1,8 +1,20 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
-import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
-import { setSiderCollapsed } from '../../services/settings.js'
+import {
+  IconPanelLeftOutline16,
+  IconRefreshOutline16,
+  IconSettingsOutline16,
+  IconWalletOutline16,
+  NewChatIcon,
+} from '../base/icons.js'
+import {
+  formatBalanceAmount,
+  pickPrimaryBalance,
+  refreshBalance,
+  useBalanceStore,
+} from '../../services/balance.js'
+import { setSiderCollapsed, useSettings } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
 import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
 import type { SessionSummary } from '../../services/chat/types.js'
@@ -92,6 +104,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
         </div>
       </div>
       <div className={styles.bottom}>
+        <SiderBalance />
         <button type="button" className={styles.settings} onClick={() => openSettings('general')}>
           <span className={styles.settingsIcon}>
             <IconSettingsOutline16 />
@@ -136,6 +149,99 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           {t('deleteSessionWithFilesDescription')}
         </Modal>
       ) : null}
+    </div>
+  )
+}
+
+/** 侧边栏底部余额卡片：未设 Key 时引导设置，已设 Key 时展示余额与快捷刷新 */
+const SiderBalance = () => {
+  const t = useTranslate()
+  const apiKey = useSettings((state) => state.apiKey)
+  const balance = useBalanceStore((state) => state.balance)
+  const loading = useBalanceStore((state) => state.loading)
+  const error = useBalanceStore((state) => state.error)
+
+  if (!apiKey) {
+    return (
+      <button
+        type="button"
+        className={styles.balanceCard}
+        onClick={() => {
+          closeMobileSider()
+          openSettings('data')
+        }}
+      >
+        <span className={styles.balanceIcon}>
+          <IconWalletOutline16 />
+        </span>
+        <span className={styles.balanceBody}>
+          <span className={styles.balanceLabel}>{t('apiBalanceEmpty')}</span>
+          <span className={styles.balanceSub}>{t('apiBalanceTapToSet')}</span>
+        </span>
+      </button>
+    )
+  }
+
+  const primary = pickPrimaryBalance(balance)
+  const hasMultipleBreakdown =
+    primary !== null &&
+    (Number(primary.granted_balance) > 0 || Number(primary.topped_up_balance) > 0)
+
+  return (
+    <div className={styles.balanceCard}>
+      <button
+        type="button"
+        className={styles.balanceMain}
+        onClick={() => {
+          if (error) {
+            void refreshBalance({ force: true })
+          } else {
+            closeMobileSider()
+            openSettings('data')
+          }
+        }}
+      >
+        <span className={styles.balanceIcon}>
+          <IconWalletOutline16 />
+        </span>
+        <span className={styles.balanceBody}>
+          <span className={styles.balanceRow}>
+            <span className={styles.balanceLabel}>{t('apiBalance')}</span>
+            {balance && !balance.is_available ? (
+              <span className={styles.balanceWarn}>{t('apiBalanceUnavailable')}</span>
+            ) : null}
+          </span>
+          <span className={clsx(styles.balanceValue, error && styles.balanceError)}>
+            {loading && !primary
+              ? t('apiBalanceLoading')
+              : error && !primary
+                ? error
+                : primary
+                  ? formatBalanceAmount(primary.currency, primary.total_balance)
+                  : t('apiBalanceNoInfo')}
+          </span>
+          {primary && hasMultipleBreakdown ? (
+            <span className={styles.balanceSub}>
+              {t('apiBalanceBreakdown', {
+                granted: formatBalanceAmount(primary.currency, primary.granted_balance),
+                toppedUp: formatBalanceAmount(primary.currency, primary.topped_up_balance),
+              })}
+            </span>
+          ) : null}
+        </span>
+      </button>
+      <IconButton
+        size="m"
+        icon={
+          <span className={clsx(styles.refreshSpin, loading && styles.refreshSpinning)}>
+            <IconRefreshOutline16 />
+          </span>
+        }
+        tooltip={t('apiBalanceRefresh')}
+        aria-label={t('apiBalanceRefresh')}
+        disabled={loading}
+        onClick={() => void refreshBalance({ force: true })}
+      />
     </div>
   )
 }

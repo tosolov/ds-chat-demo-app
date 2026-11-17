@@ -119,8 +119,125 @@
 
 .bottom {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
   flex-shrink: 0;
-  height: 64px;
+  padding: 8px 0;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+}
+
+.balanceCard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--dsw-specific-sidebar-nav-item-hover);
+  }
+}
+
+.balanceMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.balanceIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: var(--dsw-alias-brand-primary);
+}
+
+.balanceBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.balanceRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.balanceLabel {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.balanceWarn {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-state-error-primary);
+  white-space: nowrap;
+}
+
+.balanceValue {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.balanceError {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.balanceSub {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.refreshSpin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refreshSpinning {
+  animation: balance-spin 0.9s linear infinite;
+}
+
+@keyframes balance-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .settings {
@@ -209,6 +326,7 @@
 .mobile {
   width: 300px;
   max-width: calc(100vw - 48px);
+  padding-top: calc(6px + env(safe-area-inset-top));
 
   .listWrap {
     margin-top: 16px;
@@ -222,7 +340,7 @@
 
   .bottom {
     height: auto;
-    padding: 12px 0;
+    padding: 10px 0 calc(12px + env(safe-area-inset-bottom));
   }
 
   .settings {

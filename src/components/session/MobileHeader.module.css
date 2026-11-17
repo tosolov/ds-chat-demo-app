@@ -3,8 +3,8 @@
   align-items: center;
   flex-shrink: 0;
   box-sizing: border-box;
-  height: 60px;
-  padding: 12px 10px 4px;
+  height: calc(60px + env(safe-area-inset-top));
+  padding: calc(12px + env(safe-area-inset-top)) 10px 4px;
 }
 
 .title {

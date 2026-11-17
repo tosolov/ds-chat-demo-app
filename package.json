@@ -7,12 +7,14 @@
   "type": "module",
   "scripts": {
     "dev": "rspack serve -c rspack.config.ts",
-    "build": "rm -rf dist && NODE_ENV=production rspack build -c rspack.config.ts",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('child_process').execSync('rspack build -c rspack.config.ts',{stdio:'inherit',env:{...process.env,NODE_ENV:'production'}})\"",
+    "cap:sync": "pnpm build && cap sync android",
     "type": "tsc -p tsconfig.json",
     "lint": "oxlint src rspack.config.ts",
     "format": "oxfmt --write ."
   },
   "dependencies": {
+    "@capacitor/core": "^8.6.2",
     "@types/katex": "^0.16.5",
     "@types/mdast": "~4.0.3",
     "@types/prismjs": "^1.26.1",
@@ -35,6 +37,8 @@
     "zustand": "4.4.7"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
     "@rspack/cli": "2.0.2",
     "@rspack/core": "2.0.2",
     "@rspack/dev-server": "2.0.1",
